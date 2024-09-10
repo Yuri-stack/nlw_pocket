@@ -1,52 +1,28 @@
 import fastify from 'fastify'
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
-import { createGoal } from '../functions/create-goal'
-import z from 'zod'
-import { getWeekPendingGoals } from '../functions/get-week-pending-goals';
-import { createGoalCompletion } from '../functions/create-goal-completion';
+
+import { createGoalRoute } from './routes/create-goals';
+import { createCompletionRoute } from './routes/create-completion';
+import { getPendingGoalsRoute } from './routes/get-pending-goals';
+import { getWeekSummaryRoute } from './routes/get-week-summary';
+import { fastifyCors } from '@fastify/cors';
 
 const app = fastify().withTypeProvider<ZodTypeProvider>()
+
+// Habilitando o cors no Fastify
+app.register(fastifyCors, {
+    origin: '*'
+})
 
 // Add schema validator and serializer
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
 
-app.get('/pending-goals', async () => {
-    const { pendingGoals } = await getWeekPendingGoals()
-    return pendingGoals
-})
-
-// Cadastra uma Meta
-app.post('/goals', {
-    schema: {
-        body: z.object({
-            title: z.string(),
-            desiredWeeklyFrequency: z.number().int().min(1).max(7)
-        })
-    }
-}, async request => {
-    const { title, desiredWeeklyFrequency } = request.body
-
-    await createGoal({
-        title: title,
-        desiredWeeklyFrequency: desiredWeeklyFrequency
-    })
-})
-
-// Completa uma Meta
-app.post('/completions', {
-    schema: {
-        body: z.object({
-            goalId: z.string()
-        })
-    }
-}, async request => {
-    const { goalId } = request.body
-
-    await createGoalCompletion({
-        goalId
-    })
-})
+// Add Middleware/Plugin | Add as rotas ao server
+app.register(createGoalRoute)       // Cadastra uma Meta
+app.register(createCompletionRoute) // Completa uma Meta
+app.register(getPendingGoalsRoute)  // Lista as Metas Pendentes
+app.register(getWeekSummaryRoute)   // Lista todas as Metas Completadas
 
 app.listen({
     port: 3333
